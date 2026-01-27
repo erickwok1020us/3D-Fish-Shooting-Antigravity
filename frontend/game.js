@@ -2326,11 +2326,25 @@ const barrelRecoilState = {
 const fpsCameraRecoilState = {
     active: false,
     phase: 'idle',  // 'idle', 'kick', 'return'
-    pitchOffset: 0,  // Current pitch offset in radians
-    maxPitchOffset: 0,  // Target pitch offset for kick phase
+    pitchOffset: 0,  // Only vertical recoil (pitch) for cleaner feel
+    maxPitchOffset: 0,
+    // New: Horizontal recoil
+    yawOffset: 0,
+    maxYawOffset: 0,
     kickStartTime: 0,
-    kickDuration: 40,   // Fast kick up (40ms)
-    returnDuration: 150  // Slower return (150ms)
+    kickDuration: 50,    // Slightly punchier
+    returnDuration: 180  // Slower recovery for weight
+};
+
+// DYNAMIC CROSSHAIR STATE (CS:GO / Valorant Style)
+const crosshairState = {
+    currentSpread: 0,    // Current additional spread in pixels
+    baseSpread: 4,       // Static gap
+    maxSpread: 40,       // Max expansion
+    shootImpulse: 12,    // Spread added per shot
+    moveImpulse: 2,      // Spread added per movement tick
+    recoveryRate: 200,   // Pixels per second recovery
+    element: null       // DOM Element cache
 };
 
 // Sci-fi base ring state for animation
@@ -14322,12 +14336,27 @@ function fireBullet(targetX, targetY) {
     if (gameState.viewMode === 'fps') {
         // FPS MODE: Camera pitch kick (visual feedback without moving camera position)
         // This gives recoil feel without breaking the muzzle-based camera positioning
-        fpsCameraRecoilState.maxPitchOffset = recoilStrength * 0.003;  // Convert to radians (small kick)
+
+        // 1. Vertical Recoil (Pitch Up)
+        fpsCameraRecoilState.maxPitchOffset = recoilStrength * 0.005;  // Increased kick
+
+        // 2. Horizontal Recoil (Random Left/Right)
+        // Random kick between -50% to +50% of the vertical strength
+        const yawKick = (Math.random() - 0.5) * recoilStrength * 0.004;
+        fpsCameraRecoilState.maxYawOffset = yawKick;
+
         fpsCameraRecoilState.active = true;
         fpsCameraRecoilState.phase = 'kick';
         fpsCameraRecoilState.kickStartTime = performance.now();
         fpsCameraRecoilState.kickDuration = 30 + recoilStrength;
         fpsCameraRecoilState.returnDuration = 100 + recoilStrength * 4;
+
+        // 3. Dynamic Crosshair Spread Impulse
+        crosshairState.currentSpread += crosshairState.shootImpulse;
+        if (crosshairState.currentSpread > crosshairState.maxSpread) {
+            crosshairState.currentSpread = crosshairState.maxSpread;
+        }
+
     } else if (cannonBarrel) {
         // THIRD-PERSON MODE: Barrel position recoil
         // Store original position
@@ -14409,7 +14438,9 @@ function updateFPSCameraRecoil() {
         // Kick phase: Fast pitch up (easeOut)
         const kickProgress = Math.min(elapsed / fpsCameraRecoilState.kickDuration, 1);
         const easedProgress = 1 - Math.pow(1 - kickProgress, 2);
+
         fpsCameraRecoilState.pitchOffset = fpsCameraRecoilState.maxPitchOffset * easedProgress;
+        fpsCameraRecoilState.yawOffset = fpsCameraRecoilState.maxYawOffset * easedProgress;
 
         if (kickProgress >= 1) {
             fpsCameraRecoilState.phase = 'return';
@@ -14423,9 +14454,11 @@ function updateFPSCameraRecoil() {
             : 1 - Math.pow(-2 * returnProgress + 2, 2) / 2;
 
         fpsCameraRecoilState.pitchOffset = fpsCameraRecoilState.maxPitchOffset * (1 - easedProgress);
+        fpsCameraRecoilState.yawOffset = fpsCameraRecoilState.maxYawOffset * (1 - easedProgress);
 
         if (returnProgress >= 1) {
             fpsCameraRecoilState.pitchOffset = 0;
+            fpsCameraRecoilState.yawOffset = 0;
             fpsCameraRecoilState.active = false;
             fpsCameraRecoilState.phase = 'idle';
         }
@@ -15500,6 +15533,17 @@ function setupEventListeners() {
                 // FPS MODE: Crosshair centered via CSS class (more robust)
                 // No JS positioning needed - CSS handles it
             }
+
+            // DYNAMIC SPREAD: Add spread on mouse movement
+            // Only add if moving significantly
+            const moveMag = Math.abs(deltaX) + Math.abs(deltaY);
+            if (moveMag > 0) {
+                crosshairState.currentSpread += crosshairState.moveImpulse * (moveMag * 0.1);
+                if (crosshairState.currentSpread > crosshairState.maxSpread) {
+                    crosshairState.currentSpread = crosshairState.maxSpread;
+                }
+            }
+
             return;
         }
 
@@ -16237,13 +16281,18 @@ function updateFPSCamera() {
     // Apply FPS camera recoil offset (visual feedback only, doesn't affect aiming)
     // This creates a "kick up" effect when firing without moving the actual aim point
     let lookForward = forward.clone();
-    if (fpsCameraRecoilState.active && fpsCameraRecoilState.pitchOffset !== 0) {
-        // Apply pitch offset to the look direction (kick up = positive pitch offset)
+    // Check for either pitch or yaw offset
+    if (fpsCameraRecoilState.active && (fpsCameraRecoilState.pitchOffset !== 0 || fpsCameraRecoilState.yawOffset !== 0)) {
+        // Apply offsets to the look direction 
+        // Kick up = positive pitch offset
+        // Kick side = positive/negative yaw offset
         const recoilPitch = pitch + fpsCameraRecoilState.pitchOffset;
+        const recoilYaw = yaw + (fpsCameraRecoilState.yawOffset || 0);
+
         lookForward.set(
-            Math.cos(recoilPitch) * Math.sin(yaw),
+            Math.cos(recoilPitch) * Math.sin(recoilYaw),
             Math.sin(recoilPitch),
-            Math.cos(recoilPitch) * Math.cos(yaw)
+            Math.cos(recoilPitch) * Math.cos(recoilYaw)
         );
     }
 
@@ -16390,6 +16439,38 @@ function animate() {
 
     // Update FPS camera recoil (visual pitch kick effect)
     updateFPSCameraRecoil();
+
+    // DYNAMIC CROSSHAIR UPDATE (CS:GO / Valorant Style)
+    // 1. Recover spread over time
+    if (crosshairState.currentSpread > 0) {
+        crosshairState.currentSpread -= crosshairState.recoveryRate * deltaTime;
+        if (crosshairState.currentSpread < 0) crosshairState.currentSpread = 0;
+    }
+
+    // 2. Update Crosshair DOM
+    if (gameState.viewMode === 'fps') {
+        const crosshair = document.getElementById('crosshair');
+        if (crosshair) {
+            // Apply spread as size or gap increase
+            // Base size + spread
+            const spread = crosshairState.baseSpread + crosshairState.currentSpread;
+
+            // Dynamic styling: Use CSS variables or direct style
+            // Here we assume the crosshair is a container with lines that we spread apart
+            // Or simple scaling for now if structure is simple
+            // Let's use simple scaling/gap if possible, or just size
+            // Assuming crosshair is a simple box or reticle for now
+            // To do this properly without changing CSS too much, we'll scale it
+            // Or add a 'spread' class? No, needs pixel accuracy.
+
+            // Just apply a scale transform for visual feedback
+            // 1.0 (base) + offset
+            const scale = 1.0 + (crosshairState.currentSpread / 20.0);
+            crosshair.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
+            // Optional: Opacity fade if moving too fast? Nah, keep it solid.
+        }
+    }
 
     // Update sci-fi base ring animation (rotation + pulse)
     updateSciFiBaseRing(currentTime / 1000);  // Convert to seconds
