@@ -1687,7 +1687,21 @@ function getVariantForForm(tierName, form) {
 
 async function loadGLBModel(urlOrKey) {
     // FIX: Support both full URLs and R2 keys (filenames) like weapons do
-    // - Full URL: starts with 'https://' or 'http://' - use as-is
+    // - Full URL: // DYNAMIC BACKEND CONNECTION (Support for Vercel/Production)
+    // If running on localhost, connect to local backend (port 3000)
+    // If running in production (Vercel), connect to the production backend URL
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // Backed URL from Render
+    const PRODUCTION_BACKEND_URL = 'https://threed-fish-shooting-antigravity.onrender.com';
+    const SOCKET_URL = isLocal ? 'http://localhost:3000' : PRODUCTION_BACKEND_URL;
+
+    console.log(`[CONNECTION] Connecting to backend at: ${SOCKET_URL} (Environment: ${isLocal ? 'Local' : 'Production'})`);
+    socket = io(SOCKET_URL, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+    }); - use as- is
     // - Local path: starts with '/' - use as-is (will 404 for missing local files)
     // - R2 key: anything else - construct URL using baseUrl + encodeURI(key)
     let url;
