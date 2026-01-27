@@ -1701,6 +1701,67 @@ async function loadGLBModel(urlOrKey) {
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000
+    });
+
+    // ==================== BOSS MECHANISM HANDLERS ====================
+    // Fix for missing Boss UI and logic (Issue reported by user)
+
+    // Handle Boss Wave Start
+    socket.on('bossWaveStarted', (data) => {
+        console.log('[GAME] Boss Wave Started! Duration:', data.duration);
+
+        // 1. Set Game State
+        gameState.bossActive = true;
+        gameState.bossSpawnTimer = 0; // Boss is here
+
+        // 2. Show Warning UI
+        const warningEl = document.getElementById('boss-warning');
+        if (warningEl) {
+            warningEl.style.display = 'block';
+
+            // Play alarm sound if available
+            if (window.audioContext && window.audioContext.state === 'running') {
+                // Simple alarm synth
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(440, audioContext.currentTime);
+                osc.frequency.linearRampToValueAtTime(880, audioContext.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start();
+                osc.stop(audioContext.currentTime + 0.5);
+            }
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                warningEl.style.display = 'none';
+            }, 3000);
+        }
+    });
+
+    // Handle Boss Wave End
+    socket.on('bossWaveEnded', () => {
+        console.log('[GAME] Boss Wave Ended');
+        gameState.bossActive = false;
+        gameState.activeBoss = null;
+        gameState.bossSpawnTimer = 45; // Reset timer
+
+        const warningEl = document.getElementById('boss-warning');
+        if (warningEl) {
+            warningEl.style.display = 'none';
+        }
+    });
+
+    // Ensure properly handling fishSpawned for Boss
+    socket.on('fishSpawned', (fishData) => {
+        if (fishData.isBoss) {
+            console.log('[GAME] Boss Spawned via socket event:', fishData.typeName);
+            gameState.bossActive = true;
+            gameState.activeBoss = fishData; // Store boss data
+        }
     }); - use as- is
     // - Local path: starts with '/' - use as-is (will 404 for missing local files)
     // - R2 key: anything else - construct URL using baseUrl + encodeURI(key)
