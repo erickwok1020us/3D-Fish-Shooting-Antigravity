@@ -9976,10 +9976,24 @@ function getAimDirectionFromMouse(targetX, targetY, outDirection) {
     const result = outDirection || aimTempVectors.direction;
 
     // FPS MODE FIX (Valorant/CS:GO style):
-    // In FPS mode, use camera's forward direction directly to eliminate parallax offset
-    // This ensures bullets travel exactly where the crosshair points
+    // Use CONVERGENT TRAJECTORY: Muzzle -> Camera Target Point
     if (gameState.viewMode === 'fps') {
-        result.copy(rayDir);
+        const rayOrigin = raycaster.ray.origin;
+
+        // Calculate Target Point (same logic as getAimDirectionAndTarget)
+        let targetDistance = 500;
+        if (rayDir.y !== 0) {
+            const t = -rayOrigin.y / rayDir.y;
+            if (t > 20 && t < 2000) {
+                targetDistance = t;
+            }
+        }
+
+        aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, targetDistance);
+
+        // Direction = (TargetPoint - MuzzlePos) normalized
+        result.copy(aimTempVectors.targetPoint).sub(aimTempVectors.muzzlePos).normalize();
+
         return result;
     }
 
@@ -10057,22 +10071,36 @@ function getAimDirectionAndTarget(targetX, targetY, outDirection, outTargetPoint
     const resultDir = outDirection || aimTempVectors.direction;
     const resultTarget = outTargetPoint || aimTempVectors.targetPoint;
 
-    // FPS MODE: Use camera's forward direction directly (Valorant/CS:GO style)
-    // This ensures bullets travel exactly where the crosshair points, eliminating parallax
+    // FPS MODE: Use CONVERGENT TRAJECTORY (Valorant/CS:GO style)
+    // 1. Raycast from camera center to find exactly where the player is looking (Target Point).
+    // 2. Calculate direction from Muzzle to that Target Point.
+    // This ensures bullets hit EXACTLY where the crosshair is, fixing the parallax issue.
     if (gameState.viewMode === 'fps') {
-        // Use ray direction directly - this is the camera's forward direction for screen center
-        resultDir.copy(rayDir);
+        const rayDir = aimTempVectors.mouseNDC.x === 0 && aimTempVectors.mouseNDC.y === 0
+            ? camera.getWorldDirection(new THREE.Vector3())
+            : raycaster.ray.direction;
 
-        // Calculate target point along ray direction at a reasonable distance
-        // Use fish plane intersection if possible, otherwise use fallback distance
-        let targetDistance = 400;
-        if (rayDir.y > 0.001) {
+        const rayOrigin = raycaster.ray.origin;
+
+        // Calculate Target Point in 3D world
+        // Ideally, we intersect with the fish plane (Y=0) or world geometry
+        // Fallback to a fixed long distance if no intersection
+        let targetDistance = 500; // Default convergence distance (good for mid-range)
+
+        // Try to intersect with fish plane (Y=0) for consistency with 3rd person
+        if (rayDir.y !== 0) {
             const t = -rayOrigin.y / rayDir.y;
-            if (t > 10 && t < 2000) {
+            // Only use if intersection is in front of camera and within reasonable range
+            if (t > 20 && t < 2000) {
                 targetDistance = t;
             }
         }
-        resultTarget.copy(aimTempVectors.muzzlePos).addScaledVector(rayDir, targetDistance);
+
+        // Target Point = CameraPos + (CameraForward * Distance)
+        resultTarget.copy(rayOrigin).addScaledVector(rayDir, targetDistance);
+
+        // Direction = (TargetPoint - MuzzlePos) normalized
+        resultDir.copy(resultTarget).sub(aimTempVectors.muzzlePos).normalize();
 
         return { direction: resultDir, targetPoint: resultTarget };
     }
