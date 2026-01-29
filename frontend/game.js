@@ -18187,6 +18187,10 @@ window.startSinglePlayerGame = function () {
     const loadingScreen = document.getElementById('loading-screen');
     if (loadingScreen) loadingScreen.style.display = 'none';
 
+    // FIX: Hide Lobby UI to allow interaction with the game
+    const lobby = document.getElementById('multiplayer-lobby');
+    if (lobby) lobby.style.display = 'none';
+
     // Ensure animation loop is running
     if (typeof gameLoopStarted !== 'undefined' && !gameLoopStarted) {
         animate();
