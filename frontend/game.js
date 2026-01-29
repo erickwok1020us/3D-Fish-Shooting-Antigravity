@@ -14307,6 +14307,8 @@ function spawnBulletFromDirection(origin, direction, weaponKey) {
 }
 
 function fireBullet(targetX, targetY) {
+    if (CONFIG.debug) console.log(`[GAME] fireBullet called at ${targetX}, ${targetY}`);
+
     // FIX: Prevent shooting when not in game scene (e.g., in lobby/menu)
     // This prevents players from accidentally spending money when clicking menu buttons
     if (!gameState.isInGameScene) return false;
