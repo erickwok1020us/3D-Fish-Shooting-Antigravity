@@ -18203,14 +18203,17 @@ window.startSinglePlayerGame = function () {
     multiplayerManager = null;
 
     // Initialize game scene (CRITICAL: Must call this to build Three.js world)
+    // Initialize game scene (CRITICAL: Must call this to build Three.js world)
     if (typeof initGameScene === 'function') {
-        console.log('[GAME] Calling initGameScene()...');
+        logToScreen('[GAME] Calling initGameScene()...');
         initGameScene();
     } else {
-        console.error('[GAME] CRITICAL: initGameScene function not found!');
-        // Fallback (will likely result in black screen if scene not built)
-        gameState.isInGameScene = true;
+        logToScreen('[GAME] CRITICAL: initGameScene function not found!');
     }
+
+    // FIX: Always mark as in game scene (fixes "Blocked" error)
+    gameState.isInGameScene = true;
+    logToScreen('[GAME] gameState.isInGameScene set to TRUE');
 
     // NUCLEAR UI CLEANUP: Force hide lobby every 100ms for 5 seconds to defeat any async reappearance
     const uiCleanupInterval = setInterval(() => {
