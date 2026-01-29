@@ -9951,6 +9951,16 @@ function updateCannonVisual() {
     buildCannonGeometryForWeapon(gameState.currentWeapon);
 }
 
+// Global temp vectors for aim calculations to avoid GC
+// FIX: Defined globally to prevent ReferenceError
+const aimTempVectors = {
+    mouseNDC: new THREE.Vector2(),
+    muzzlePos: new THREE.Vector3(),
+    rayDirection: new THREE.Vector3(),
+    direction: new THREE.Vector3(),
+    targetPoint: new THREE.Vector3()
+};
+
 // Get aim direction from mouse position (shared by cannon aiming and bullet firing)
 // PERFORMANCE: Uses pre-allocated temp vectors to avoid garbage collection pressure
 // This is critical for third-person mode where this function is called on every mouse move
@@ -18163,6 +18173,39 @@ window.game = {
     camera: null,
     gameState: gameState,
     CONFIG: CONFIG
+};
+
+// Start Single Player Game (called from index.html)
+// FIX: Added missing function to handle Single Player button click
+window.startSinglePlayerGame = function () {
+    console.log('[GAME] Starting Single Player Mode');
+
+    // Reset multiplayer state
+    multiplayerMode = false;
+    multiplayerManager = null;
+
+    // Set game state to active
+    gameState.isInGameScene = true;
+    gameState.isPaused = false;
+
+    // Hide loading screen if visible
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) loadingScreen.style.display = 'none';
+
+    // Ensure animation loop is running
+    if (typeof gameLoopStarted !== 'undefined' && !gameLoopStarted) {
+        animate();
+    }
+
+    // Force UI update
+    updateUI();
+
+    // Reset camera based on current mode
+    if (gameState.viewMode === 'fps') {
+        if (typeof initFPSMode === 'function') initFPSMode();
+    } else {
+        if (typeof resetThirdPersonCamera === 'function') resetThirdPersonCamera();
+    }
 };
 
 // ==================== START GAME ====================
