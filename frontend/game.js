@@ -18171,8 +18171,16 @@ window.startSinglePlayerGame = function () {
     multiplayerMode = false;
     multiplayerManager = null;
 
-    // Set game state to active
-    gameState.isInGameScene = true;
+    // Initialize game scene (CRITICAL: Must call this to build Three.js world)
+    if (typeof initGameScene === 'function') {
+        console.log('[GAME] Calling initGameScene()...');
+        initGameScene();
+    } else {
+        console.error('[GAME] CRITICAL: initGameScene function not found!');
+        // Fallback (will likely result in black screen if scene not built)
+        gameState.isInGameScene = true;
+    }
+
     gameState.isPaused = false;
 
     // Hide loading screen if visible
