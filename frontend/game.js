@@ -9997,8 +9997,8 @@ function getAimDirectionFromMouse(targetX, targetY, outDirection) {
             // Hit fish: Use exact hit point
             aimTempVectors.targetPoint.copy(hitFish.point);
         } else {
-            // Miss: Fixed deep fallback (1000 units)
-            const fixedDistance = 1000;
+            // Miss: Fixed fallback (300 units - matching back wall)
+            const fixedDistance = 300;
             aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, fixedDistance);
         }
 
@@ -10111,9 +10111,10 @@ function getAimDirectionAndTarget(targetX, targetY, outDirection, outTargetPoint
             aimTempVectors.targetPoint.copy(hitFish.point);
             if (DEBUG_AIM) console.log(`[AIM] Locked on fish: ${hitFish.object.name || 'Body'} at dist ${hitFish.distance.toFixed(1)}`);
         } else {
-            // CASE B: MISSING -> Fixed deep convergence (1000 units / ~100m)
-            // This places the "zeroing" point far away, so parallax is negligible for missed shots
-            const fixedDistance = 1000;
+            // CASE B: MISSING -> Fixed deep convergence (300 units / ~30m - approx back wall)
+            // This places the "zeroing" point at the back of the aquarium "box"
+            // This reduces the "bullet travels below crosshair" feeling
+            const fixedDistance = 300;
             aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, fixedDistance);
         }
 
