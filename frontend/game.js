@@ -9997,9 +9997,42 @@ function getAimDirectionFromMouse(targetX, targetY, outDirection) {
             // Hit fish: Use exact hit point
             aimTempVectors.targetPoint.copy(hitFish.point);
         } else {
-            // Miss: Fixed fallback (300 units - matching back wall)
-            const fixedDistance = 300;
-            aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, fixedDistance);
+            // Miss: Aquarium Box Intersection
+            const { width, height, depth, floorY } = CONFIG.aquarium;
+            const minX = -width / 2, maxX = width / 2;
+            const minY = floorY, maxY = floorY + height;
+            const minZ = -depth / 2, maxZ = depth / 2;
+
+            let tMin = 0, tMax = Infinity, hitBox = true;
+            const bounds = [
+                { min: minX, max: maxX, val: rayOrigin.x, dir: rayDir.x },
+                { min: minY, max: maxY, val: rayOrigin.y, dir: rayDir.y },
+                { min: minZ, max: maxZ, val: rayOrigin.z, dir: rayDir.z }
+            ];
+
+            for (let i = 0; i < 3; i++) {
+                const { min, max, val, dir } = bounds[i];
+                if (Math.abs(dir) < 1e-6) {
+                    if (val < min || val > max) { hitBox = false; break; }
+                } else {
+                    let t1 = (min - val) / dir;
+                    let t2 = (max - val) / dir;
+                    if (t1 > t2) [t1, t2] = [t2, t1];
+                    tMin = Math.max(tMin, t1);
+                    tMax = Math.min(tMax, t2);
+                    if (tMin > tMax) { hitBox = false; break; }
+                }
+            }
+
+            let dist = 1200;
+            if (hitBox) {
+                const isInside = (rayOrigin.x >= minX && rayOrigin.x <= maxX && rayOrigin.y >= minY && rayOrigin.y <= maxY && rayOrigin.z >= minZ && rayOrigin.z <= maxZ);
+                if (isInside) dist = tMax;
+                else if (tMax > 0) dist = tMin > 0 ? tMin : tMax;
+            }
+            if (!Number.isFinite(dist) || dist <= 0) dist = 1200;
+
+            aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, dist);
         }
 
         // Direction = (TargetPoint - MuzzlePos) normalized
@@ -10111,11 +10144,51 @@ function getAimDirectionAndTarget(targetX, targetY, outDirection, outTargetPoint
             aimTempVectors.targetPoint.copy(hitFish.point);
             if (DEBUG_AIM) console.log(`[AIM] Locked on fish: ${hitFish.object.name || 'Body'} at dist ${hitFish.distance.toFixed(1)}`);
         } else {
-            // CASE B: MISSING -> Fixed deep convergence (300 units / ~30m - approx back wall)
-            // This places the "zeroing" point at the back of the aquarium "box"
-            // This reduces the "bullet travels below crosshair" feeling
-            const fixedDistance = 300;
-            aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, fixedDistance);
+            // CASE B: MISSING FISH -> Intersect with Aquarium Bounds (The "Box")
+            // This ensures "What You See Is Where You Shoot".
+            // If you aim at the back wall (1200), bullet hits back wall.
+            // If you aim at the ceiling (450), bullet hits ceiling.
+
+            const { width, height, depth, floorY } = CONFIG.aquarium;
+
+            // Define box bounds
+            const minX = -width / 2, maxX = width / 2;
+            const minY = floorY, maxY = floorY + height;
+            const minZ = -depth / 2, maxZ = depth / 2;
+
+            // Ray-AABB Intersection (Slab Method)
+            let tMin = 0, tMax = Infinity, hitBox = true;
+            const bounds = [
+                { min: minX, max: maxX, val: rayOrigin.x, dir: rayDir.x },
+                { min: minY, max: maxY, val: rayOrigin.y, dir: rayDir.y },
+                { min: minZ, max: maxZ, val: rayOrigin.z, dir: rayDir.z }
+            ];
+
+            for (let i = 0; i < 3; i++) {
+                const { min, max, val, dir } = bounds[i];
+                if (Math.abs(dir) < 1e-6) {
+                    if (val < min || val > max) { hitBox = false; break; }
+                } else {
+                    let t1 = (min - val) / dir;
+                    let t2 = (max - val) / dir;
+                    if (t1 > t2) [t1, t2] = [t2, t1];
+                    tMin = Math.max(tMin, t1);
+                    tMax = Math.min(tMax, t2);
+                    if (tMin > tMax) { hitBox = false; break; }
+                }
+            }
+
+            // Calculate exact distance to the visual surface
+            let dist = 1200; // Default
+            if (hitBox) {
+                // Check if inside so we pick exit point
+                const isInside = (rayOrigin.x >= minX && rayOrigin.x <= maxX && rayOrigin.y >= minY && rayOrigin.y <= maxY && rayOrigin.z >= minZ && rayOrigin.z <= maxZ);
+                if (isInside) dist = tMax;
+                else if (tMax > 0) dist = tMin > 0 ? tMin : tMax;
+            }
+            if (!Number.isFinite(dist) || dist <= 0) dist = 1200;
+
+            aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, dist);
         }
 
         // Direction = (TargetPoint - MuzzlePos) normalized
