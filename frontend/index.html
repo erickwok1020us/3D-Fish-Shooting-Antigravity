@@ -1847,14 +1847,18 @@
                 btnSinglePlayer.addEventListener('click', () => {
                     playMenuClickSound();
 
-                    // FIX: Allow single player to start even without server connection
-                    // Single player mode doesn't require server - game works offline
+                    // FIX: CRITICAL force hide lobby
+                    lobbyScreen.style.setProperty('display', 'none', 'important');
+                    gameContainer.style.display = 'block';
+
+                    // FIX: Detach multiplayer UI callbacks to prevent network errors from showing lobby
+                    if (multiplayer) {
+                        multiplayer.onDisconnected = () => { };
+                        multiplayer.onError = () => { };
+                    }
+
                     // FIX: Use default player name - API will provide actual name
                     const playerName = 'Player';
-
-                    // Hide lobby, show game container
-                    lobbyScreen.style.display = 'none';
-                    gameContainer.style.display = 'block';
 
                     // Call the new game start function (lazy initialization)
                     if (typeof window.startSinglePlayerGame === 'function') {
