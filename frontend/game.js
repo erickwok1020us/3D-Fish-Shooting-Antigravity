@@ -18181,6 +18181,21 @@ window.startSinglePlayerGame = function () {
         gameState.isInGameScene = true;
     }
 
+    // NUCLEAR UI CLEANUP: Force hide lobby every 100ms for 5 seconds to defeat any async reappearance
+    const uiCleanupInterval = setInterval(() => {
+        const lobby = document.getElementById('multiplayer-lobby');
+        if (lobby) {
+            console.log('[GAME] REMOVING lobby from DOM completely...');
+            lobby.remove(); // DESTROY IT
+        } else {
+            // If element is gone, stop checking
+            clearInterval(uiCleanupInterval);
+        }
+    }, 100);
+
+    // Stop checking after 5 seconds (network timeouts usually happen within 2-3s)
+    setTimeout(() => clearInterval(uiCleanupInterval), 5000);
+
     gameState.isPaused = false;
 
     // Hide loading screen if visible
