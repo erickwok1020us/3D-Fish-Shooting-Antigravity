@@ -7453,8 +7453,26 @@ function spawnCoinBurst(position, count) {
 // ============================================================================
 // DELAYED COIN COLLECTION SYSTEM
 // Coins stay at death location for 5-8 seconds with gentle spinning animation
-// Then all coins on screen are collected together and fly to score
-// ============================================================================
+// Video background for home page and loading screen
+// Managed in index.html, game.js handles playback triggers
+
+// DEBUG UTILITY: Log to on-screen overlay
+function logToScreen(msg) {
+    const overlay = document.getElementById('debug-overlay');
+    if (overlay) {
+        overlay.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        overlay.scrollTop = overlay.scrollHeight;
+    }
+    console.log(msg);
+}
+
+// Global Error Handler
+window.onerror = function (msg, url, line, col, error) {
+    logToScreen(`ERROR: ${msg} at line ${line}`);
+    return false;
+};
+
+// ==================== CONFIGURATION ========================================================
 
 const coinCollectionSystem = {
     waitingCoins: [],           // Coins waiting to be collected
@@ -14307,17 +14325,24 @@ function spawnBulletFromDirection(origin, direction, weaponKey) {
 }
 
 function fireBullet(targetX, targetY) {
+    logToScreen(`fireBullet: Called at ${targetX}, ${targetY}`);
     if (CONFIG.debug) console.log(`[GAME] fireBullet called at ${targetX}, ${targetY}`);
 
     // FIX: Prevent shooting when not in game scene (e.g., in lobby/menu)
     // This prevents players from accidentally spending money when clicking menu buttons
-    if (!gameState.isInGameScene) return false;
+    if (!gameState.isInGameScene) {
+        logToScreen(`fireBullet: Blocked (Not in Game Scene)`);
+        return false;
+    }
 
     const weaponKey = gameState.currentWeapon;
     const weapon = CONFIG.weapons[weaponKey];
 
     // Check cooldown - use shotsPerSecond to calculate cooldown
-    if (gameState.cooldown > 0) return false;
+    if (gameState.cooldown > 0) {
+        // logToScreen(`fireBullet: Cooldown`); // Too spammy
+        return false;
+    }
 
     // MULTIPLAYER MODE: Send shoot to server, don't do local balance/cost handling
     // Server handles balance deduction and collision detection
@@ -15777,12 +15802,14 @@ function setupEventListeners() {
 
     // Left click to shoot
     container.addEventListener('mousedown', (e) => {
+        logToScreen(`MouseDown: ${e.button} at ${e.clientX},${e.clientY}`);
         if (e.button !== 0) return;
 
         // Don't shoot if clicking on UI elements
         if (e.target.closest('#weapon-panel') ||
             e.target.closest('#auto-shoot-btn') ||
             e.target.closest('#settings-container')) {
+            logToScreen(`MouseDown: Blocked by UI`);
             return;
         }
 
@@ -15791,12 +15818,14 @@ function setupEventListeners() {
         // FIX: If pointer is not locked, ONLY lock pointer without firing bullet
         // This prevents players from spending money just to lock the pointer
         if (gameState.viewMode === 'fps' && document.pointerLockElement !== container) {
+            logToScreen(`MouseDown: Requesting Pointer Lock`);
             if (container.requestPointerLock) {
                 container.requestPointerLock();
             }
             return; // Don't fire bullet - just lock pointer
         }
 
+        logToScreen(`MouseDown: Firing Bullet...`);
         fireBullet(e.clientX, e.clientY);
     });
 
