@@ -9976,20 +9976,31 @@ function getAimDirectionFromMouse(targetX, targetY, outDirection) {
     const result = outDirection || aimTempVectors.direction;
 
     // FPS MODE FIX (Valorant/CS:GO style):
-    // Use CONVERGENT TRAJECTORY: Muzzle -> Camera Target Point
+    // Use HYBRID CONVERGENT TRAJECTORY: Muzzle -> (Fish Hit OR Fixed 1000 unit point)
     if (gameState.viewMode === 'fps') {
-        const rayOrigin = raycaster.ray.origin;
+        const rayDir = camera.getWorldDirection(aimTempVectors.rayDirection);
+        const rayOrigin = camera.position;
 
-        // Calculate Target Point (same logic as getAimDirectionAndTarget)
-        let targetDistance = 500;
-        if (rayDir.y !== 0) {
-            const t = -rayOrigin.y / rayDir.y;
-            if (t > 20 && t < 2000) {
-                targetDistance = t;
+        // Ensure raycaster is updated for manual calls (though mostly handled by caller)
+        raycaster.set(rayOrigin, rayDir);
+
+        // 1. Raycast against fish
+        let hitFish = null;
+        if (gameState.fish.length > 0) {
+            const intersects = raycaster.intersectObjects(gameState.fish, true);
+            if (intersects.length > 0) {
+                hitFish = intersects[0];
             }
         }
 
-        aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, targetDistance);
+        if (hitFish) {
+            // Hit fish: Use exact hit point
+            aimTempVectors.targetPoint.copy(hitFish.point);
+        } else {
+            // Miss: Fixed deep fallback (1000 units)
+            const fixedDistance = 1000;
+            aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, fixedDistance);
+        }
 
         // Direction = (TargetPoint - MuzzlePos) normalized
         result.copy(aimTempVectors.targetPoint).sub(aimTempVectors.muzzlePos).normalize();
@@ -10071,10 +10082,9 @@ function getAimDirectionAndTarget(targetX, targetY, outDirection, outTargetPoint
     const resultDir = outDirection || aimTempVectors.direction;
     const resultTarget = outTargetPoint || aimTempVectors.targetPoint;
 
-    // FPS MODE: Use CONVERGENT TRAJECTORY (Valorant/CS:GO style)
-    // 1. Raycast from camera center to find exactly where the player is looking (Target Point).
-    // 2. Calculate direction from Muzzle to that Target Point.
-    // This ensures bullets hit EXACTLY where the crosshair is, fixing the parallax issue.
+    // FPS MODE: Use HYBRID CONVERGENT TRAJECTORY (Dynamic + Fixed Fallback)
+    // 1. DYNAMIC: Raycast against fish to find exact hit point (100% accuracy on target).
+    // 2. FALLBACK: If no fish, converge at fixed long distance (1000 units) to minimize near-field parallax.
     if (gameState.viewMode === 'fps') {
         const rayDir = aimTempVectors.mouseNDC.x === 0 && aimTempVectors.mouseNDC.y === 0
             ? camera.getWorldDirection(new THREE.Vector3())
@@ -10082,25 +10092,34 @@ function getAimDirectionAndTarget(targetX, targetY, outDirection, outTargetPoint
 
         const rayOrigin = raycaster.ray.origin;
 
-        // Calculate Target Point in 3D world
-        // Ideally, we intersect with the fish plane (Y=0) or world geometry
-        // Fallback to a fixed long distance if no intersection
-        let targetDistance = 500; // Default convergence distance (good for mid-range)
-
-        // Try to intersect with fish plane (Y=0) for consistency with 3rd person
-        if (rayDir.y !== 0) {
-            const t = -rayOrigin.y / rayDir.y;
-            // Only use if intersection is in front of camera and within reasonable range
-            if (t > 20 && t < 2000) {
-                targetDistance = t;
+        // HYBRID STRATEGY:
+        // 1. Raycast against all fish meshes to see if we are aiming at a fish
+        // PERFORMANCE: Only intersect if we have fish
+        let hitFish = null;
+        if (gameState.fish.length > 0) {
+            // Use the existing raycaster which is already set from camera
+            const intersects = raycaster.intersectObjects(gameState.fish, true); // true = recursive for groups
+            if (intersects.length > 0) {
+                // Find the first valid hit (that isn't invisible/helper)
+                // Usually the first one is closest and correct
+                hitFish = intersects[0];
             }
         }
 
-        // Target Point = CameraPos + (CameraForward * Distance)
-        resultTarget.copy(rayOrigin).addScaledVector(rayDir, targetDistance);
+        if (hitFish) {
+            // CASE A: HITTING A FISH -> Pinpoint accuracy
+            aimTempVectors.targetPoint.copy(hitFish.point);
+            if (DEBUG_AIM) console.log(`[AIM] Locked on fish: ${hitFish.object.name || 'Body'} at dist ${hitFish.distance.toFixed(1)}`);
+        } else {
+            // CASE B: MISSING -> Fixed deep convergence (1000 units / ~100m)
+            // This places the "zeroing" point far away, so parallax is negligible for missed shots
+            const fixedDistance = 1000;
+            aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, fixedDistance);
+        }
 
         // Direction = (TargetPoint - MuzzlePos) normalized
-        resultDir.copy(resultTarget).sub(aimTempVectors.muzzlePos).normalize();
+        resultDir.copy(aimTempVectors.targetPoint).sub(aimTempVectors.muzzlePos).normalize();
+        resultTarget.copy(aimTempVectors.targetPoint);
 
         return { direction: resultDir, targetPoint: resultTarget };
     }
