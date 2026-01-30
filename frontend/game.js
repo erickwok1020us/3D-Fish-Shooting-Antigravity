@@ -2021,10 +2021,9 @@ const WEAPON_GLB_CONFIG = {
             // X-axis rotation to show water splash crown front face (not bottom)
             hitEffectRotationFix: new THREE.Euler(-Math.PI / 2, 0, 0),
             hitEffectPlanar: true,
-            // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
-            fpsCameraBackDist: 95,
-            fpsCameraUpOffset: 20,
-            aimConvergenceDist: 100
+            fpsCameraBackDist: 105,
+            fpsCameraUpOffset: 45,
+            aimConvergenceDist: 30
         },
         '3x': {
             cannon: '3x 武器模組',
@@ -2043,10 +2042,9 @@ const WEAPON_GLB_CONFIG = {
             // X-axis rotation to show water splash crown front face (not bottom)
             hitEffectRotationFix: new THREE.Euler(-Math.PI / 2, 0, 0),
             hitEffectPlanar: true,
-            // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
-            fpsCameraBackDist: 105,
-            fpsCameraUpOffset: 25,
-            aimConvergenceDist: 100
+            fpsCameraBackDist: 115,
+            fpsCameraUpOffset: 50,
+            aimConvergenceDist: 30
         },
         '5x': {
             cannon: '5x 武器模組',
@@ -2062,10 +2060,9 @@ const WEAPON_GLB_CONFIG = {
             // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
             bulletRotationFix: new THREE.Euler(0, -Math.PI / 2, 0),
             hitEffectPlanar: false,
-            // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
-            fpsCameraBackDist: 130,
-            fpsCameraUpOffset: 30,
-            aimConvergenceDist: 100
+            fpsCameraBackDist: 140,
+            fpsCameraUpOffset: 55,
+            aimConvergenceDist: 30
         },
         '8x': {
             cannon: '8x 武器模組',
@@ -2081,10 +2078,9 @@ const WEAPON_GLB_CONFIG = {
             // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
             bulletRotationFix: new THREE.Euler(0, -Math.PI / 2, 0),
             hitEffectPlanar: false,
-            // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
-            fpsCameraBackDist: 190,
-            fpsCameraUpOffset: 40,
-            aimConvergenceDist: 100
+            fpsCameraBackDist: 200,
+            fpsCameraUpOffset: 65,
+            aimConvergenceDist: 30
         }
     }
 };
