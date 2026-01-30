@@ -2035,7 +2035,8 @@ const WEAPON_GLB_CONFIG = {
             muzzleOffset: new THREE.Vector3(0, 25, 65),
             // FIX: Changed to +90° to match 8x - cannon model now visually points toward bullet direction
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
-            bulletRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
+            // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
+            bulletRotationFix: new THREE.Euler(0, -Math.PI / 2, 0),
             // X-axis rotation to show water splash crown front face (not bottom)
             hitEffectRotationFix: new THREE.Euler(-Math.PI / 2, 0, 0),
             hitEffectPlanar: true,
@@ -2053,7 +2054,8 @@ const WEAPON_GLB_CONFIG = {
             hitEffectScale: 1.5,
             muzzleOffset: new THREE.Vector3(0, 25, 70),
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
-            bulletRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
+            // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
+            bulletRotationFix: new THREE.Euler(0, -Math.PI / 2, 0),
             hitEffectPlanar: false,
             // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
             fpsCameraBackDist: 130,
@@ -2069,7 +2071,8 @@ const WEAPON_GLB_CONFIG = {
             hitEffectScale: 2.0,
             muzzleOffset: new THREE.Vector3(0, 25, 80),
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
-            bulletRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
+            // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
+            bulletRotationFix: new THREE.Euler(0, -Math.PI / 2, 0),
             hitEffectPlanar: false,
             // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
             fpsCameraBackDist: 190,
@@ -14325,13 +14328,11 @@ function spawnBulletFromDirection(origin, direction, weaponKey) {
 }
 
 function fireBullet(targetX, targetY) {
-    logToScreen(`fireBullet: Called at ${targetX}, ${targetY}`);
     if (CONFIG.debug) console.log(`[GAME] fireBullet called at ${targetX}, ${targetY}`);
 
     // FIX: Prevent shooting when not in game scene (e.g., in lobby/menu)
     // This prevents players from accidentally spending money when clicking menu buttons
     if (!gameState.isInGameScene) {
-        logToScreen(`fireBullet: Blocked (Not in Game Scene)`);
         return false;
     }
 
@@ -15801,15 +15802,14 @@ function setupEventListeners() {
     });
 
     // Left click to shoot
+    // Left click to shoot
     container.addEventListener('mousedown', (e) => {
-        logToScreen(`MouseDown: ${e.button} at ${e.clientX},${e.clientY}`);
         if (e.button !== 0) return;
 
         // Don't shoot if clicking on UI elements
         if (e.target.closest('#weapon-panel') ||
             e.target.closest('#auto-shoot-btn') ||
             e.target.closest('#settings-container')) {
-            logToScreen(`MouseDown: Blocked by UI`);
             return;
         }
 
@@ -15818,14 +15818,12 @@ function setupEventListeners() {
         // FIX: If pointer is not locked, ONLY lock pointer without firing bullet
         // This prevents players from spending money just to lock the pointer
         if (gameState.viewMode === 'fps' && document.pointerLockElement !== container) {
-            logToScreen(`MouseDown: Requesting Pointer Lock`);
             if (container.requestPointerLock) {
                 container.requestPointerLock();
             }
             return; // Don't fire bullet - just lock pointer
         }
 
-        logToScreen(`MouseDown: Firing Bullet...`);
         fireBullet(e.clientX, e.clientY);
     });
 
