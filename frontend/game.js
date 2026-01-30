@@ -2013,7 +2013,8 @@ const WEAPON_GLB_CONFIG = {
             scale: 0.8,
             bulletScale: 0.5,
             hitEffectScale: 1.0,
-            muzzleOffset: new THREE.Vector3(0, 25, 60),
+            // FIX: Raised Y to 60 (near eye level 65) to fix parallax/aim-low issue (CS:GO style)
+            muzzleOffset: new THREE.Vector3(0, 60, 60),
             // FIX: Changed to +90° to match 8x - cannon model now visually points toward bullet direction
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
             bulletRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
@@ -2032,7 +2033,8 @@ const WEAPON_GLB_CONFIG = {
             scale: 1.0,
             bulletScale: 0.6,
             hitEffectScale: 1.2,
-            muzzleOffset: new THREE.Vector3(0, 25, 65),
+            // FIX: Raised Y to 65 (near eye level 70)
+            muzzleOffset: new THREE.Vector3(0, 65, 65),
             // FIX: Changed to +90° to match 8x - cannon model now visually points toward bullet direction
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
             // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
@@ -2052,7 +2054,8 @@ const WEAPON_GLB_CONFIG = {
             scale: 1.2,
             bulletScale: 0.7,
             hitEffectScale: 1.5,
-            muzzleOffset: new THREE.Vector3(0, 25, 70),
+            // FIX: Raised Y to 75 (near eye level 80)
+            muzzleOffset: new THREE.Vector3(0, 75, 70),
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
             // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
             bulletRotationFix: new THREE.Euler(0, -Math.PI / 2, 0),
@@ -2069,7 +2072,8 @@ const WEAPON_GLB_CONFIG = {
             scale: 1.5,
             bulletScale: 0.9,
             hitEffectScale: 2.0,
-            muzzleOffset: new THREE.Vector3(0, 25, 80),
+            // FIX: Raised Y to 95 (near eye level 100)
+            muzzleOffset: new THREE.Vector3(0, 95, 80),
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
             // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
             bulletRotationFix: new THREE.Euler(0, -Math.PI / 2, 0),
