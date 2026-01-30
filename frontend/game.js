@@ -2622,11 +2622,14 @@ async function loadWeaponGLB(weaponKey, type) {
         return null;
     }
 
-    // FIX: Auto-append .glb extension if missing
-    // User configs often omit the extension (e.g. "1x 擊中特效") but R2 requires it
+    // FIX: User confirmed certain R2 files (1x/3x/5x) have NO extension
+    // We do NOT auto-append .glb here anymore because it breaks those files.
+    // If a file needs extension, it should be in the config string.
+    /*
     if (filename && !filename.toLowerCase().endsWith('.glb')) {
         filename += '.glb';
     }
+    */
 
     // Properly encode the filename for URL (handles Chinese characters and spaces)
     const encodedFilename = encodeURIComponent(filename);
@@ -14424,6 +14427,18 @@ function fireBullet(targetX, targetY) {
     const aimResult = getAimDirectionAndTarget(aimX, aimY, fireBulletTempVectors.multiplayerDir, fireBulletTempVectors.targetPoint);
     const direction = aimResult.direction;
     const targetPoint = aimResult.targetPoint;
+
+    // FIX: Prevent shooting backwards if target is too close (behind muzzle)
+    // In FPS mode, if direction opposes camera view, force camera direction
+    if (gameState.viewMode === 'fps') {
+        const camDir = new THREE.Vector3();
+        camera.getWorldDirection(camDir);
+        if (direction.dot(camDir) < 0) {
+            direction.copy(camDir);
+            // Also push target point out to avoid self-collision visual artifacts
+            targetPoint.copy(camera.position).addScaledVector(camDir, 100);
+        }
+    }
 
     // PERFORMANCE: Use temp vector instead of creating new Vector3
     cannonMuzzle.getWorldPosition(fireBulletTempVectors.muzzlePos);
