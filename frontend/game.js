@@ -2013,16 +2013,16 @@ const WEAPON_GLB_CONFIG = {
             scale: 0.8,
             bulletScale: 0.5,
             hitEffectScale: 1.0,
-            // FIX: Raised Y to 60 (near eye level 65) to fix parallax/aim-low issue (CS:GO style)
-            muzzleOffset: new THREE.Vector3(0, 60, 60),
+            // FIX: Restored to original values to fix "mid-air spawn" and "small weapon" feel
+            muzzleOffset: new THREE.Vector3(0, 35, 40),
             // FIX: Changed to +90° to match 8x - cannon model now visually points toward bullet direction
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
             bulletRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
             // X-axis rotation to show water splash crown front face (not bottom)
             hitEffectRotationFix: new THREE.Euler(-Math.PI / 2, 0, 0),
             hitEffectPlanar: true,
-            fpsCameraBackDist: 105,
-            fpsCameraUpOffset: 45,
+            fpsCameraBackDist: 95,
+            fpsCameraUpOffset: 20,
             aimConvergenceDist: 30
         },
         '3x': {
@@ -2033,8 +2033,8 @@ const WEAPON_GLB_CONFIG = {
             scale: 1.0,
             bulletScale: 0.6,
             hitEffectScale: 1.2,
-            // FIX: Raised Y to 65 (near eye level 70)
-            muzzleOffset: new THREE.Vector3(0, 65, 65),
+            // FIX: Restored to original values
+            muzzleOffset: new THREE.Vector3(0, 40, 45),
             // FIX: Changed to +90° to match 8x - cannon model now visually points toward bullet direction
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
             // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
@@ -2042,8 +2042,8 @@ const WEAPON_GLB_CONFIG = {
             // X-axis rotation to show water splash crown front face (not bottom)
             hitEffectRotationFix: new THREE.Euler(-Math.PI / 2, 0, 0),
             hitEffectPlanar: true,
-            fpsCameraBackDist: 115,
-            fpsCameraUpOffset: 50,
+            fpsCameraBackDist: 105,
+            fpsCameraUpOffset: 25,
             aimConvergenceDist: 30
         },
         '5x': {
@@ -2054,14 +2054,14 @@ const WEAPON_GLB_CONFIG = {
             scale: 1.2,
             bulletScale: 0.7,
             hitEffectScale: 1.5,
-            // FIX: Raised Y to 75 (near eye level 80)
-            muzzleOffset: new THREE.Vector3(0, 75, 70),
+            // FIX: Restored to original values
+            muzzleOffset: new THREE.Vector3(0, 45, 50),
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
             // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
             bulletRotationFix: new THREE.Euler(0, -Math.PI / 2, 0),
             hitEffectPlanar: false,
-            fpsCameraBackDist: 140,
-            fpsCameraUpOffset: 55,
+            fpsCameraBackDist: 130,
+            fpsCameraUpOffset: 30,
             aimConvergenceDist: 30
         },
         '8x': {
@@ -2073,14 +2073,14 @@ const WEAPON_GLB_CONFIG = {
             scale: 1.5,
             bulletScale: 0.9,
             hitEffectScale: 2.0,
-            // FIX: Raised Y to 95 (near eye level 100)
-            muzzleOffset: new THREE.Vector3(0, 95, 80),
+            // FIX: Restored to original values
+            muzzleOffset: new THREE.Vector3(0, 50, 60),
             cannonRotationFix: new THREE.Euler(0, Math.PI / 2, 0),
             // FIX: Reverted to -90° (flip 180°) because user reported it shooting backwards
             bulletRotationFix: new THREE.Euler(0, -Math.PI / 2, 0),
             hitEffectPlanar: false,
-            fpsCameraBackDist: 200,
-            fpsCameraUpOffset: 65,
+            fpsCameraBackDist: 190,
+            fpsCameraUpOffset: 40,
             aimConvergenceDist: 30
         }
     }
