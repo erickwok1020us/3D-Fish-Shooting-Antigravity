@@ -2066,9 +2066,10 @@ const WEAPON_GLB_CONFIG = {
         },
         '8x': {
             cannon: '8x 武器模組',
-            cannonNonPlayer: '8x 武器模組(非玩家).glb.glb',
-            bullet: '8x 子彈模組',
-            hitEffect: '8x 擊中特效',
+            cannonNonPlayer: '8x 武器模組(非玩家).glb',
+            // 8x is Laser type, no bullet model needed (uses procedural laser beam)
+            // bullet: '8x 子彈模組',
+            // hitEffect: '8x 擊中特效',
             scale: 1.5,
             bulletScale: 0.9,
             hitEffectScale: 2.0,
