@@ -2023,7 +2023,8 @@ const WEAPON_GLB_CONFIG = {
             hitEffectPlanar: true,
             // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
             fpsCameraBackDist: 95,
-            fpsCameraUpOffset: 65
+            fpsCameraUpOffset: 20,
+            aimConvergenceDist: 100
         },
         '3x': {
             cannon: '3x 武器模組',
@@ -2044,7 +2045,8 @@ const WEAPON_GLB_CONFIG = {
             hitEffectPlanar: true,
             // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
             fpsCameraBackDist: 105,
-            fpsCameraUpOffset: 70
+            fpsCameraUpOffset: 25,
+            aimConvergenceDist: 100
         },
         '5x': {
             cannon: '5x 武器模組',
@@ -2062,7 +2064,8 @@ const WEAPON_GLB_CONFIG = {
             hitEffectPlanar: false,
             // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
             fpsCameraBackDist: 130,
-            fpsCameraUpOffset: 80
+            fpsCameraUpOffset: 30,
+            aimConvergenceDist: 100
         },
         '8x': {
             cannon: '8x 武器模組',
@@ -2080,7 +2083,8 @@ const WEAPON_GLB_CONFIG = {
             hitEffectPlanar: false,
             // FPS Camera: Lower camera position so cannon muzzle is visible when looking straight
             fpsCameraBackDist: 190,
-            fpsCameraUpOffset: 100
+            fpsCameraUpOffset: 40,
+            aimConvergenceDist: 100
         }
     }
 };
@@ -10003,14 +10007,16 @@ function getAimDirectionFromMouse(targetX, targetY, outDirection) {
     // PERFORMANCE: Use output vector if provided, otherwise use temp vector
     const result = outDirection || aimTempVectors.direction;
 
-    // FPS MODE FIX (Valorant/CS:GO style):
-    // Use HYBRID CONVERGENT TRAJECTORY: Muzzle -> (Fish Hit OR Fixed 1000 unit point)
-    if (gameState.viewMode === 'fps') {
-        const rayDir = camera.getWorldDirection(aimTempVectors.rayDirection);
-        const rayOrigin = camera.position;
 
-        // Ensure raycaster is updated for manual calls (though mostly handled by caller)
-        raycaster.set(rayOrigin, rayDir);
+    // FPS MODE FIX (Valorant/CS:GO style):
+    // Use HYBRID CONVERGENT TRAJECTORY: Muzzle -> (Fish Hit OR Fixed Convergence)
+    if (gameState.viewMode === 'fps') {
+        const fpsRayDir = new THREE.Vector3();
+        camera.getWorldDirection(fpsRayDir);
+        const fpsRayOrigin = camera.position;
+
+        // Ensure raycaster is updated for manual calls
+        raycaster.set(fpsRayOrigin, fpsRayDir);
 
         // 1. Raycast against fish
         let hitFish = null;
@@ -10025,91 +10031,38 @@ function getAimDirectionFromMouse(targetX, targetY, outDirection) {
             // Hit fish: Use exact hit point
             aimTempVectors.targetPoint.copy(hitFish.point);
         } else {
-            // Miss: Aquarium Box Intersection
-            const { width, height, depth, floorY } = CONFIG.aquarium;
-            const minX = -width / 2, maxX = width / 2;
-            const minY = floorY, maxY = floorY + height;
-            const minZ = -depth / 2, maxZ = depth / 2;
+            // Miss: Use Fixed Convergence Distance (Shortened Triangle)
+            // Instead of aiming at the far aquarium walls (which causes parallel parallax),
+            // we aim at a fixed "Sweet Spot" distance defined in config.
+            // This ensures bullets "rise" to meet the crosshair at combat range.
+            const currentWeaponKey = weaponGLBState.currentWeaponKey || '1x';
+            const weaponConfig = WEAPON_GLB_CONFIG.weapons[currentWeaponKey];
+            const convergenceDist = weaponConfig?.aimConvergenceDist || 350;
 
-            let tMin = 0, tMax = Infinity, hitBox = true;
-            const bounds = [
-                { min: minX, max: maxX, val: rayOrigin.x, dir: rayDir.x },
-                { min: minY, max: maxY, val: rayOrigin.y, dir: rayDir.y },
-                { min: minZ, max: maxZ, val: rayOrigin.z, dir: rayDir.z }
-            ];
-
-            for (let i = 0; i < 3; i++) {
-                const { min, max, val, dir } = bounds[i];
-                if (Math.abs(dir) < 1e-6) {
-                    if (val < min || val > max) { hitBox = false; break; }
-                } else {
-                    let t1 = (min - val) / dir;
-                    let t2 = (max - val) / dir;
-                    if (t1 > t2) [t1, t2] = [t2, t1];
-                    tMin = Math.max(tMin, t1);
-                    tMax = Math.min(tMax, t2);
-                    if (tMin > tMax) { hitBox = false; break; }
-                }
-            }
-
-            let dist = 1200;
-            if (hitBox) {
-                const isInside = (rayOrigin.x >= minX && rayOrigin.x <= maxX && rayOrigin.y >= minY && rayOrigin.y <= maxY && rayOrigin.z >= minZ && rayOrigin.z <= maxZ);
-                if (isInside) dist = tMax;
-                else if (tMax > 0) dist = tMin > 0 ? tMin : tMax;
-            }
-            if (!Number.isFinite(dist) || dist <= 0) dist = 1200;
-
-            aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, dist);
-        }
-
-        // Direction = (TargetPoint - MuzzlePos) normalized
-        result.copy(aimTempVectors.targetPoint).sub(aimTempVectors.muzzlePos).normalize();
-
-        return result;
-    }
-
-    // THIRD-PERSON MODE: Use ray-plane intersection for accurate click-to-hit
-    // Ray equation: P(t) = rayOrigin + rayDir * t
-    // Fish plane equation: Y = 0
-    // Solve: rayOrigin.y + rayDir.y * t = 0 => t = -rayOrigin.y / rayDir.y
-    //
-    // Edge cases handled:
-    // - If ray is pointing downward (rayDir.y <= 0), use fallback distance
-    // - If intersection is behind camera (t <= 0), use fallback distance
-    // - Clamp t to reasonable range to avoid extreme values
-
-    let targetDistance;
-    if (rayDir.y > 0.001) {
-        // Ray is pointing upward toward fish plane
-        const t = -rayOrigin.y / rayDir.y;
-        if (t > 10 && t < 2000) {
-            // Valid intersection within reasonable range
-            targetDistance = t;
-        } else {
-            // Intersection too close or too far, use fallback
-            targetDistance = 400;
+            const dir = fpsRayDir.normalize();
+            aimTempVectors.targetPoint.copy(fpsRayOrigin).addScaledVector(dir, convergenceDist);
         }
     } else {
-        // Ray is pointing downward or horizontal, use fallback
-        targetDistance = 400;
+        // THIRD-PERSON MODE: Use ray-plane intersection for accurate click-to-hit
+        // Ray equation: P(t) = rayOrigin + rayDir * t
+        // Fish plane equation: Y = 0
+        // Solve: rayOrigin.y + rayDir.y * t = 0 => t = -rayOrigin.y / rayDir.y
+
+        let targetDistance = 400; // Default
+
+        if (rayDir.y > 0.001) {
+            // Ray is pointing upward toward fish plane
+            const t = -rayOrigin.y / rayDir.y;
+            if (t > 10 && t < 2000) {
+                targetDistance = t;
+            }
+        }
+
+        aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, targetDistance);
     }
 
-    aimTempVectors.targetPoint.copy(rayOrigin).addScaledVector(rayDir, targetDistance);
-
-    // Calculate direction from muzzle to target point
+    // Direction = (TargetPoint - MuzzlePos) normalized
     result.copy(aimTempVectors.targetPoint).sub(aimTempVectors.muzzlePos).normalize();
-
-    // CRITICAL FIX: Ensure direction aligns with ray direction (same general direction as click)
-    // If dot product is negative, the direction is opposite to where user clicked
-    // This can happen when muzzle is positioned such that the target point ends up "behind" it
-    const dotWithRay = result.dot(rayDir);
-    if (dotWithRay < 0) {
-        // Direction is opposite to ray - use ray direction directly
-        // This ensures bullets always go toward where user clicked
-        result.copy(rayDir);
-    }
-
     return result;
 }
 
@@ -14527,8 +14480,8 @@ function fireBullet(targetX, targetY) {
         fireLaserBeam(muzzlePos, direction, weaponKey);
 
     } else if (weapon.type === 'rocket') {
-        // 5x ROCKET: Straight line projectile with explosion on impact
-        // No parabolic trajectory - fires straight where you aim
+        // 5x ROCKET: Single powerful rocket
+        // Fires from center muzzle, converging at target point
         spawnBulletFromDirection(muzzlePos, direction, weaponKey);
 
     } else {
@@ -16476,8 +16429,10 @@ function updateFPSCamera() {
     const backOffset = backwardDir.multiplyScalar(cameraBackDist);
 
     // FIXED camera Y position based on constants - NEVER accumulates
-    // Base Y (-337.5) + pitch pivot (35) + muzzle offset (25) + camera up offset
-    const FIXED_MUZZLE_Y = -337.5 + 35 + 25;  // = -277.5
+    // Base Y (-337.5) + pitch pivot (35) + muzzle offset (from config) + camera up offset
+    // FIX: Use actual muzzle offset from config instead of hardcoded 25 to match visual model and reduce parallax
+    const muzzleOffsetY = weaponConfig?.muzzleOffset?.y || 25;
+    const FIXED_MUZZLE_Y = -337.5 + 35 + muzzleOffsetY;
     const cameraY = FIXED_MUZZLE_Y + cameraUpOffset;
 
     // Set camera position with FIXED Y
@@ -16608,11 +16563,40 @@ function updateFPSDebugOverlay() {
     const deg = r => (r * 180 / Math.PI).toFixed(1);
     const cannonYaw = cannonGroup ? deg(cannonGroup.rotation.y) : 'N/A';
     const cannonPitch = cannonPitchGroup ? deg(-cannonPitchGroup.rotation.x) : 'N/A';
+    const pitchDeg = (gameState.fpsPitch * 180 / Math.PI).toFixed(1);
+    const yawDeg = (gameState.fpsYaw * 180 / Math.PI).toFixed(1);
+
+    // FPS DEBUG: Show detailed Aim Config
+    const currentWeaponKey = weaponGLBState.currentWeaponKey || '1x';
+    const weaponConfig = WEAPON_GLB_CONFIG.weapons[currentWeaponKey];
+    const convergenceSetting = weaponConfig?.aimConvergenceDist || 'Default(350)';
+    const muzzleY = weaponConfig?.muzzleOffset?.y || '??';
+    const cameraUp = weaponConfig?.fpsCameraUpOffset || '??';
+
+    // Check what we are aiming at right now (for debug display)
+    let aimStatus = "Scanning...";
+    let aimDist = "---";
+
+    if (raycaster && camera) {
+        // Quick raycast for debug UI (separate from game logic to avoid side effects, but reuses valid state)
+        // We can just imply it from recent logic but for UI we want real data
+        // Let's just show the CONFIG values first, reliable.
+    }
+
     const isDragging = gameState.isRightDragging ? 'YES' : 'no';
 
     overlay.innerHTML = `
+        <div>FPS DEBUG MODE</div>
         <div>Cannon Yaw: ${cannonYaw} deg</div>
         <div>Cannon Pitch: ${cannonPitch} deg</div>
+        <div>FPS Pitch: ${pitchDeg}°</div>
+        <div>FPS Yaw: ${yawDeg}°</div>
+        <div style="color: #ffff00; margin-top: 5px;">--- SHOOTING CONFIG ---</div>
+        <div>Weapon: ${currentWeaponKey}</div>
+        <div>Convergence Dist: <span style="color: #00ff00; font-weight: bold; font-size: 14px;">${convergenceSetting}</span></div>
+        <div>Muzzle Y: ${muzzleY}</div>
+        <div>Cam Up Offset: ${cameraUp}</div>
+        <div style="color: #aaaaaa; font-size: 10px;">(If Dist=100, bullet meets crosshair at 100u)</div>
         <div>Right-Dragging: ${isDragging}</div>
         <div style="font-size:10px;color:#888;margin-top:4px;">Build: fps-95-v1</div>
     `;
