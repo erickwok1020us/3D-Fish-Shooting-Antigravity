@@ -2612,6 +2612,12 @@ async function loadWeaponGLB(weaponKey, type) {
             return null;
     }
 
+    // FIX: Auto-append .glb extension if missing
+    // User configs often omit the extension (e.g. "1x 擊中特效") but R2 requires it
+    if (filename && !filename.toLowerCase().endsWith('.glb')) {
+        filename += '.glb';
+    }
+
     // Properly encode the filename for URL (handles Chinese characters and spaces)
     const encodedFilename = encodeURIComponent(filename);
     const url = WEAPON_GLB_CONFIG.baseUrl + encodedFilename;
